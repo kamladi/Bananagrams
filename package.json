@@ -1,6 +1,7 @@
 {
 	"name": "Bananagrams",
 	"description": "An in-browser, realtime, multiplayer Bananagrams game",
+	"version": "0.0.1",
 	"author": "Kedar Amladi, Andy Peng",
 	"dependencies": {
 		"express": "3.0.x",

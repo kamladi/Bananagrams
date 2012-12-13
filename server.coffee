@@ -19,10 +19,11 @@ GAME_STARTED = true
 #manage socket connections
 io.sockets.on 'connection', (client) ->
 	PLAYERS.push(client)
-	console.log "New Player: #{client.id}"
+	console.log "New Player: #{client.id} connected"
 
 	#when client assigns themself a nickname
 	client.on 'set nickname', (name) ->
+		console.log "received request from #{client.id} to set nickname to #{name}"
 		client.set 'nickname', name, ->
 			client.get 'nickname', (err, clientName) ->
 				console.log "Client #{client.id} assigned nickname #{clientName}"
@@ -58,3 +59,6 @@ io.sockets.on 'connection', (client) ->
 		io.sockets.emit 'bag size', size: Bag.size()
 		console.log "current bag size: #{Bag.size()}"
 
+#Handle main route
+app.get '/', (req, res) ->
+	res.sendfile(__dirname + '/index.html');

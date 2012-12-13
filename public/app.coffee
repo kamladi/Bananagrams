@@ -1,54 +1,42 @@
-class Events
-	constructor: () ->
-		@events = {}
-	bind: (evt, callback) ->
-		@events[evt] = @events[event] or {}
-		@events[event].push callback
-	unbind: (event, callback) ->
-		if event in @events
-			if callback in @events[event]
-				index = @events[event].indexOf(callback)
-				@events[event].splice index, 1
-	trigger: (event, args...) ->
-		if event in @events
-			for callback in @events[event]
-				callback.apply @, args
-
 ###
 	GAME class: manages client-side game logic and socket connections
 ###
-class Game extends Events
+class Game
 	constructor: (@BOARD, @HAND) ->
 		@bagSize = 144
-		@connect()
 
-		#event handlers
-		@BOARD.on 'addTileToBoard', @addTileToBoard
+		#save reference to game object in BOARD and HAND
+		@BOARD.GAME = @
+		@HAND.GAME = @
+
+		#leggo
+		@connect()
 
 	connect: () ->
 		#socket init
-		@socket = io.connect 'http://localhost'
+		@socket = io.connect 'http://localhost:8080'
 		
 		#setup handlers for socket events
-		@socket.on 'connect', () ->
-			@socket.emit 'set nickname', prompt("Welcome! Enter a nickname")
+		@socket.on 'connect', () =>
+			console.log "connected to localhost"
+			name = prompt("Welcome! Enter a nickname")
+			console.log "entered " + name
+			@socket.emit 'set nickname', name
+			@
 		@socket.on 'ready', (data) ->
 			console.log "connected as #{data.nickname}"
-		@socket.on 'new tile', @addNewTile
+		@socket.on 'new tile', @addTileToHand
 		@socket.on 'bag size', @updateBagSize
 		@socket.on 'bananas', @gameOver
 
 	startGame: (numStartingTiles = 7) ->
 		@socket.emit 'start game', numStartingTiles: numStartingTiles
+		@
 
-	addNewTile: (data) ->
+	addTileToHand: (data) ->
 		console.log "Received new tile: #{data.tile}"
-		@HAND.addTile tile
+		@HAND.addTile data.tile
 		console.log "current hand: #{@hand}"
-
-	addTileToBoard: (data) ->
-		##get tile from hand and add to board
-		tile = @HAND.getSelectedTile()
 	
 	updateBagSize: (data) ->
 		@bagSize = data.size
@@ -61,7 +49,7 @@ class Game extends Events
 ###
 	HAND class: manages the player's 'hand' of tiles
 ###
-class Hand extends Events
+class Hand
 	constructor: () ->
 		@$hand = $('hand')
 		@$hand.on('click', 'div', @selectTile)
@@ -74,46 +62,65 @@ class Hand extends Events
 		tileDiv = e.target
 		tileDiv.addClass 'selected'
 	getSelectedTile: () ->
-		selectedTile = $.hand.find('div.selected')
+		selectedTile = @$hand.find('div.selected')[0]
 		if selectedTile
 			tile = selectedTile.text()
 			selectedTile.remove()
 			return tile
+		else
+			console.log "no tile currently selected"
+			return null
 
 
 ###
 	BOARD class: manages board on screen
 ###
-class Board extends Events
+class Board
 	constructor: () ->
 		@$board = $('#board')
 		NUMCOLS = 10
 		NUMROWS = 10
+		#empty symbol
+		@EMPTY = "&oslash;"
 
 		#build table
 		htmlString = ""
 		for i in [0...NUMCOLS]
 			htmlString += "<tr>"
 			for j in [0...NUMCOLS]
-				html += "<td></td>"
+				htmlString += "<td>" + @EMPTY + "</td>"
 			htmlString += "</tr>"
 		@$board.html htmlString
 
 		#event handlers
-		@on 'addToBoard', @insertTile
-		@on 'removeFromBoard', @removeTile
+		@$board.on 'click', 'td', @handleClick
+
+	handleClick: (e) =>
+		console.log "table cell clicked:"
+		cell = e.currentTarget
+		col = cell.cellIndex
+		row = cell.parentNode.rowIndex
+		tile = cell.innerHTML
+		console.log "(tile, row, col): (#{tile}, #{row}, #{col})"
+		
+		# if the cell has a letter, move letter back to hand
+		if cell.classList.contains 'tile'
+			GAME.addTileToHand tile
+			cell.innerHTML = @EMPTY
+			cell.classList.toggle 'tile'
+		
+		# if the cell is empty, move the selected tile in hand to board
+		else
+			selectedTile = @GAME.HAND.getSelectedTile()
+			if selectedTile
+				@addTile selectedTile, row, col
+				cell.classList.toggle 'tile'
 	
-	insertTile: (tile, x, y) ->
-		row = @board.find('tr')[y]
+	addTile: (tile, x, y) ->
+		row = @$board.find('tr')[y]
 		col = row.getElementsByTagName('td')[x]
 		col.innerText = tile
 
-	removeTile: (x, y) ->
-		row = @$board.find('tr')[y]
-		col = row.getElementsByTagName('td')[x]
-		tile = col.innerText
-		col.innerText = ""
-
 #let's kick everything off at page load
-window.onload = ->
+$(document).ready ->
 	window.GAME = new Game(new Board(), new Hand())
