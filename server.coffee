@@ -6,11 +6,11 @@ io = require('socket.io').listen(server)
 app.use express.logger()
 app.use express.static(__dirname + '/public')
 
-app.listen(8080)
+server.listen(8080)
 console.log "listening on port 8080"
 
 #instantiate new Bag
-Bag = require 'Bag'
+Bag = require './Bag'
 
 
 PLAYERS = []
@@ -19,10 +19,14 @@ GAME_STARTED = true
 #manage socket connections
 io.sockets.on 'connection', (client) ->
 	PLAYERS.push(client)
+	console.log "New Player: #{client.id}"
 
 	#when client assigns themself a nickname
 	client.on 'set nickname', (name) ->
-		client.set 'nickname', name, client.emit('ready')
+		client.set 'nickname', name, ->
+			client.get 'nickname', (err, clientName) ->
+				console.log "Client #{client.id} assigned nickname #{clientName}"
+				client.emit('ready', nickname: clientName)
 
 	#when someone triggers to start game,
 	#deal given number of tiles to each connected player
@@ -38,7 +42,8 @@ io.sockets.on 'connection', (client) ->
 		if Bag.isEmpty()
 			io.sockets.emit "bananas", winner: client
 		else
-			io.sockets.emit 'new tile', tile: Bag.pop()
+			for player in PLAYERS
+				player.emit 'new tile', tile: Bag.pop()
 		#send client update on bag size
 		io.sockets.emit 'bag size', size: Bag.size()
 		console.log "current bag size: #{Bag.size()}"

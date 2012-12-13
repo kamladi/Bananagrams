@@ -2,18 +2,19 @@ events = require 'events'
 
 class Bag extends events.EventEmitter
 	constructor: () ->
+		@tiles = []
 		#add all 144 tiles to set
-		addTiles 2, ["J", "K", "Q", "X", "Z"]
-		addTiles 3, ["B", "C", "F", "H", "M", "P", "V", "W", "Y"]
-		addTiles 4, ["G"]
-		addTiles 5, ["L"]
-		addTiles 6, ["D", "S", "U"]
-		addTiles 8, ["N"]
-		addTiles 9, ["T", "R"]
-		addTiles 11, ["O"]
-		addTiles 12, ["I"]
-		addTiles 13, ["A"]
-		addTiles 18, ["E"]
+		@addTiles 2, ["J", "K", "Q", "X", "Z"]
+		@addTiles 3, ["B", "C", "F", "H", "M", "P", "V", "W", "Y"]
+		@addTiles 4, ["G"]
+		@addTiles 5, ["L"]
+		@addTiles 6, ["D", "S", "U"]
+		@addTiles 8, ["N"]
+		@addTiles 9, ["T", "R"]
+		@addTiles 11, ["O"]
+		@addTiles 12, ["I"]
+		@addTiles 13, ["A"]
+		@addTiles 18, ["E"]
 		
 		#randomize array once created? for now, picking random index on demand
 		###
@@ -28,6 +29,8 @@ class Bag extends events.EventEmitter
 
 	pop: () ->
 		#random number between 0 and 143 (144 total tiles)
+		if @isEmpty()
+			return null
 		randIndex = Math.floor(Math.random()*144)
 		tile = @tiles.splice randIndex, 1
 
