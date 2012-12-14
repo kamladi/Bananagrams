@@ -14,12 +14,13 @@ Bag = require './Bag'
 
 
 PLAYERS = []
-GAME_STARTED = true
+GAME_STARTED = false
 
 #manage socket connections
 io.sockets.on 'connection', (client) ->
 	PLAYERS.push(client)
 	console.log "New Player: #{client.id} connected"
+	console.log "#{PLAYERS.length} players connected"
 
 	#when client assigns themself a nickname
 	client.on 'set nickname', (name) ->
@@ -32,11 +33,13 @@ io.sockets.on 'connection', (client) ->
 	#when someone triggers to start game,
 	#deal given number of tiles to each connected player
 	client.on 'start game', (data) ->
+		console.log "Starting game..."
 		numStartingTiles = data.numStartingTiles
 		if not GAME_STARTED
 			for player in PLAYERS
 				for i in [0..numStartingTiles]
 					player.emit 'new tile', tile: Bag.pop()
+			GAME_STARTED = true
 
 	#when someone 'peels', tell everyone else to peel
 	client.on 'peel', (data) ->
@@ -58,6 +61,14 @@ io.sockets.on 'connection', (client) ->
 		#send client update on bag size
 		io.sockets.emit 'bag size', size: Bag.size()
 		console.log "current bag size: #{Bag.size()}"
+
+	#when player disconnects
+	client.on 'disconnect', () ->
+		#remove player from PLAYERS
+		console.log "Player #{client.id} disconnected"
+		index = PLAYERS.indexOf client
+		if index > -1
+			PLAYERS.splice index, 1
 
 #Handle main route
 app.get '/', (req, res) ->

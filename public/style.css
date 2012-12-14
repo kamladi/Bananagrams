@@ -32,3 +32,13 @@ body {
 	text-align: center;
 	border: none;
 }
+
+#hand .tile {
+	width: 50px;
+	display: inline-block;
+	float: left;
+}
+
+#hand .tile.selected {
+	border: 3px solid #f00;
+}

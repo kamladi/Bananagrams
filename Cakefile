@@ -25,5 +25,5 @@ task 'restart', 'Restart Node server', ->
 
 
 task 'dev', 'Dev Mode: watching for cahanges and restarting Node server', ->
- 	invoke 'restart'
  	invoke 'watch'
+ 	invoke 'restart'

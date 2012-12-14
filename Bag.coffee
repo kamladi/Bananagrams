@@ -1,6 +1,4 @@
-events = require 'events'
-
-class Bag extends events.EventEmitter
+class Bag
 	constructor: () ->
 		@tiles = []
 		#add all 144 tiles to set
@@ -28,10 +26,10 @@ class Bag extends events.EventEmitter
 				@tiles.push letter
 
 	pop: () ->
-		#random number between 0 and 143 (144 total tiles)
+		#random number between 0 and number of tiles left
 		if @isEmpty()
 			return null
-		randIndex = Math.floor(Math.random()*144)
+		randIndex = Math.floor(Math.random()*@tiles.length)
 		tile = @tiles.splice randIndex, 1
 
 		return tile
@@ -50,4 +48,4 @@ class Bag extends events.EventEmitter
 	isEmpty: () ->
 		return @tiles.length is 0
 
-exports.Bag = new Bag()
+module.exports = new Bag()
