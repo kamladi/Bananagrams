@@ -92,16 +92,16 @@ class Hand
 class Board
 	constructor: () ->
 		@$board = $('#board')
-		NUMCOLS = 10
-		NUMROWS = 10
+		@NUMCOLS = 10
+		@NUMROWS = 10
 		#empty symbol
 		@EMPTY = "&oslash;"
 
 		#build table
 		htmlString = ""
-		for i in [0...NUMCOLS]
+		for i in [0...@NUMCOLS]
 			htmlString += "<tr>"
-			for j in [0...NUMCOLS]
+			for j in [0...@NUMCOLS]
 				htmlString += "<td>" + @EMPTY + "</td>"
 			htmlString += "</tr>"
 		@$board.html htmlString
@@ -121,20 +121,24 @@ class Board
 		# if the cell has a letter, move letter back to hand
 		if cell.classList.contains 'tile'
 			cell.classList.toggle 'tile'
-			GAME.addTileToHand tile
+                        # Careful... method addTileToHand takes object literal
+                        # with the property "tile", NOT a string
+			GAME.addTileToHand tile: tile
 			cell.innerHTML = @EMPTY
 		
 		# if the cell is empty, move the selected tile in hand to board
 		else
-			cell.classList.toggle 'tile'
-			selectedTile = @GAME.HAND.getSelectedTile()
-			if selectedTile
-				cell.innerHTML = selectedTile
-			#if no more tiles in hand, peel
-			console.log GAME.HAND.$hand[0]
-			if GAME.HAND.$hand[0].childElementCount is 0
-				console.log "PEELING"
-				GAME.peel()
+                        selectedTile = @GAME.HAND.getSelectedTile()
+                        # highlights cell on board only if there is a selected
+                        # tile otherwise nothing
+                        if selectedTile
+                                cell.classList.toggle 'tile'
+                                cell.innerHTML = selectedTile
+                                #if no more tiles in hand, peel
+                                console.log GAME.HAND.$hand[0]
+                                if GAME.HAND.$hand[0].childElementCount is 0
+                                        console.log "PEELING"
+                                        GAME.peel()
 	
 	addTile: (tile, x, y) ->
 		row = @$board.find('tr')[y]
