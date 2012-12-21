@@ -39,12 +39,17 @@ io.sockets.on 'connection', (client) ->
 			for player in PLAYERS
 				for i in [0..numStartingTiles]
 					player.emit 'new tile', tile: Bag.pop()
+				#send each player update on bag size
+			io.sockets.emit 'bag size', size: Bag.size()
+			console.log "current bag size: #{Bag.size()}"
 			GAME_STARTED = true
 
 	#when someone 'peels', tell everyone else to peel
 	client.on 'peel', (data) ->
 		if Bag.isEmpty()
-			io.sockets.emit "bananas", winner: client
+			client.get "nickname", (err, name) ->
+				io.sockets.emit "bananas", winner: name
+			return
 		else
 			for player in PLAYERS
 				player.emit 'new tile', tile: Bag.pop()

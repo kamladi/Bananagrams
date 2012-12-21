@@ -11,8 +11,7 @@ class Game
 
 		#leggo
 		@connect()
-		alert "Game starting in 5 seconds..."
-		window.setTimeout(@startGame, 5000)
+		@initMenuHandlers()
 
 	connect: () ->
 		#socket init
@@ -34,23 +33,37 @@ class Game
 		@socket.on 'bag size', @updateBagSize
 		@socket.on 'bananas', @gameOver
 
-	startGame: (numStartingTiles = 7) =>
-		@socket.emit 'start game', numStartingTiles: numStartingTiles
-		@
+	initMenuHandlers: () ->
+		menuBtns = $('#menu li')
+		startGameBtn = menuBtns[0]
+		peelBtn = menuBtns[1]
+		dumpBtn = menuBtns[2]
+
+		startGameBtn.onclick = @startGame
+		peelBtn.onclick = @peel
+		dumpBtn.onclick = @dump
+	
+	startGame: (e) =>
+		tileNum = 7
+		@socket.emit 'start game', numStartingTiles: tileNum
 
 	addTileToHand: (data) =>
 		console.log "Received new tile: #{data.tile}"
 		@HAND.addTile data.tile
 	
-	peel: () ->
+	peel: () =>
+		if @HAND.$hand.find('.tile').length isnt 0
+			return false
 		@socket.emit 'peel'
 
-	dump: (tile) ->
-		@socket.emit 'dump', tile: tile
+	dump: (e) =>
+		selectedTile = @HAND.getSelectedTile()
+		@socket.emit 'dump', tile: selectedTile
 
 	updateBagSize: (data) =>
 		@bagSize = data.size
 		console.log "Bag size: #{data.size}"
+		$('#menu p span.bag-size').text @bagSize
 	
 	gameOver: (data) ->
 		winner = data.winner
@@ -67,6 +80,10 @@ class Hand
 		newTile = document.createElement 'div'
 		newTile.className = "tile"
 		newTile.innerText = tile
+		#hand now has at least one tile,
+		#so remove 'empty hand' message if it exists
+		if @$hand.find('p').length isnt 0
+			@$hand.find('p').remove()
 		@$hand.append newTile
 	selectTile: (e) =>
 		tileDiv = $(e.target)
@@ -99,11 +116,8 @@ class Board
 
 		#build table
 		htmlString = ""
-		for i in [0...@NUMCOLS]
-			htmlString += "<tr>"
-			for j in [0...@NUMCOLS]
-				htmlString += "<td>" + @EMPTY + "</td>"
-			htmlString += "</tr>"
+		for i in [0...@NUMROWS]
+			htmlString += @createNewRow()
 		@$board.html htmlString
 
 		#event handlers
@@ -117,7 +131,6 @@ class Board
 		tile = cell.innerHTML
 		console.log "(tile, row, col): (#{tile}, #{row}, #{col})"
 		
-		
 		# if the cell has a letter, move letter back to hand
 		if cell.classList.contains 'tile'
 			cell.classList.toggle 'tile'
@@ -125,25 +138,94 @@ class Board
                         # with the property "tile", NOT a string
 			GAME.addTileToHand tile: tile
 			cell.innerHTML = @EMPTY
+			#prune empty edge rows/cols
+			#NOTE: this will never actually be called, because
+				#everytime we add a tile to an edge row/col,
+				#we create an empty row/col. Therefore we will never
+				#have an edge row/col with a tile in it.
+			@unextendBoard row, col
 		
 		# if the cell is empty, move the selected tile in hand to board
 		else
-                        selectedTile = @GAME.HAND.getSelectedTile()
-                        # highlights cell on board only if there is a selected
-                        # tile otherwise nothing
-                        if selectedTile
-                                cell.classList.toggle 'tile'
-                                cell.innerHTML = selectedTile
-                                #if no more tiles in hand, peel
-                                console.log GAME.HAND.$hand[0]
-                                if GAME.HAND.$hand[0].childElementCount is 0
-                                        console.log "PEELING"
-                                        GAME.peel()
-	
+            selectedTile = @GAME.HAND.getSelectedTile()
+            # highlights cell on board only if there is a selected
+            # tile otherwise nothing
+            if selectedTile
+                    cell.classList.toggle 'tile'
+                    cell.innerHTML = selectedTile
+                    #if no more tiles in hand, tell user to peel
+                    if GAME.HAND.$hand[0].childElementCount is 0
+                    	GAME.HAND.$hand.html('<p>No more tiles! Click "Peel!" to get another one</p>')
+            #if we added a tile in an edge row/col, 
+            #prepend/append new row/col
+            @extendBoard row, col
+
 	addTile: (tile, x, y) ->
 		row = @$board.find('tr')[y]
 		col = row.getElementsByTagName('td')[x]
 		col.innerText = tile
+
+	#given a row, col index where a tile was added,
+	#extend the board appropriately
+	extendBoard: (row, col) ->
+		if row is 0 or row is @NUMROWS - 1
+        	newRowHTML = @createNewRow()
+        	if row is 0
+        		@$board.prepend newRowHTML
+        	else
+        		@$board.append newRowHTML
+        	@NUMROWS += 1
+		if col is 0 or col is @NUMCOLS - 1
+			@$board.find('tr').each ->
+				newCell = document.createElement 'td'
+				newCell.innerHTML = "&Oslash;"
+				if col is 0
+					this.insertBefore newCell, this.firstChild
+				else
+					this.appendChild newCell
+			@NUMCOLS += 1
+	#given a row, col index where a tile was removed,
+	#remove edge rows/columns appropriately
+	unextendBoard: (row, col) ->
+		if row is 0 and @rowEmpty(0)
+			@$board.find('tr').eq(0).remove()
+			@NUMROWS -= 1
+		if row is @NUMROWS-1 and @rowEmpty(@NUMROWS-1)
+			@$board.find('tr').eq(@NUMROWS-1).remove()
+			@NUMROWS -= 1
+		if col is 0 and @colEmpty(0)
+			@$board.find('tr').each ->
+				@removeChild @firstChild
+			@NUMCOLS -= 1
+		if col is @NUMCOLS-1 and @colEmpty(@NUMCOLS-1)
+			@$board.find('tr').each ->
+				@removeChild @lastChild
+			@NUMCOLS -= 1
+
+	# checks if a given row has no tiles
+	rowEmpty: (rowIndex) ->
+		row = @$board.find('tr')[rowIndex]
+		cells = row.children
+		for i in [0...@NUMCOLS]
+			if cells[i].classList.contains 'tile'
+				return false
+		return true
+	
+	# checks if a given column has no tiles
+	colEmpty: (colIndex) ->
+		rows = @$board.find('tr')
+		for i in [0...@NUMROWS]
+			if rows[i].firstChild.classList.contains 'tile'
+				return false
+		return true
+
+	createNewRow: ->
+		newRow = "<tr>"
+		for i in [0...@NUMCOLS]
+			newRow += "<td>&Oslash;</td>"
+		newRow += "</tr>"
+		newRow
+
 
 #let's kick everything off at page load
 $(document).ready ->
