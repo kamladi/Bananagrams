@@ -44,7 +44,8 @@ io.sockets.on 'connection', (client) ->
 	#when someone 'peels', tell everyone else to peel
 	client.on 'peel', (data) ->
 		if Bag.isEmpty()
-			io.sockets.emit "bananas", winner: client
+                        client.get 'nickname', (err, clientName) ->
+                                io.sockets.emit "bananas", winner: clientName
 		else
 			for player in PLAYERS
 				player.emit 'new tile', tile: Bag.pop()
