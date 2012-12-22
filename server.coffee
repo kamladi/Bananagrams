@@ -12,9 +12,13 @@ console.log "listening on port 8080"
 #instantiate new Bag
 Bag = require './Bag'
 
+#load dictionary
+Dictionary = require('./Dictionary.coffee')
+
 
 PLAYERS = []
 GAME_STARTED = false
+WINNER = null
 
 #manage socket connections
 io.sockets.on 'connection', (client) ->
@@ -47,8 +51,7 @@ io.sockets.on 'connection', (client) ->
 	#when someone 'peels', tell everyone else to peel
 	client.on 'peel', (data) ->
 		if Bag.isEmpty()
-			client.get "nickname", (err, name) ->
-				io.sockets.emit "bananas", winner: name
+			client.emit 'bag empty'
 			return
 		else
 			for player in PLAYERS
@@ -67,6 +70,17 @@ io.sockets.on 'connection', (client) ->
 		io.sockets.emit 'bag size', size: Bag.size()
 		console.log "current bag size: #{Bag.size()}"
 
+	#when someone wants to call bananas
+	#if board is valid, end the game
+	client.on 'validate', (data) ->
+		if Dictionary.validate data.board
+			WINNER = true
+			client.get "nickname", (err, name) ->
+				io.sockets.emit "bananas", winner: name
+			return
+		else
+			client.emit 'board invalid'
+
 	#when player disconnects
 	client.on 'disconnect', () ->
 		#remove player from PLAYERS
@@ -78,3 +92,4 @@ io.sockets.on 'connection', (client) ->
 #Handle main route
 app.get '/', (req, res) ->
 	res.sendfile(__dirname + '/index.html');
+

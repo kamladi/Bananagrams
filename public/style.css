@@ -26,6 +26,10 @@ body {
 	margin: 0 8px 0 0;
 }
 
+#menu li.hidden {
+	display: none;
+}
+
 #menu p {
 	float: right;
 	color: #000;

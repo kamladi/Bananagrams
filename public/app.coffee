@@ -20,17 +20,19 @@ class Game
 		#setup handlers for socket events
 		@socket.on 'connect', () =>
 			console.log "connected to localhost"
-			name = prompt("Welcome! Enter a nickname")
-			if name is ""
+			@nickname = prompt("Welcome! Enter a nickname")
+			if @nickname is ""
 				console.log "no name entered"
 				return false
-			console.log "entered " + name
-			@socket.emit 'set nickname', name
-			@
+			console.log "entered " + @nickname
+			@socket.emit 'set nickname', @nickname
+
 		@socket.on 'ready', (data) =>
 			console.log "connected as #{data.nickname}"
 		@socket.on 'new tile', @addTileToHand
 		@socket.on 'bag size', @updateBagSize
+		@socket.on 'bag empty', @activateBananasBtn
+		@socket.on 'board invalid', @invalidBoardMessage
 		@socket.on 'bananas', @gameOver
 
 	initMenuHandlers: () ->
@@ -38,14 +40,17 @@ class Game
 		startGameBtn = menuBtns[0]
 		peelBtn = menuBtns[1]
 		dumpBtn = menuBtns[2]
+		bananasBtn = menuBtns[3]
 
 		startGameBtn.onclick = @startGame
 		peelBtn.onclick = @peel
 		dumpBtn.onclick = @dump
+		bananasBtn.onclick = @validateBoard
 	
 	startGame: (e) =>
 		tileNum = 7
 		@socket.emit 'start game', numStartingTiles: tileNum
+		$('#menu li#start').addClass 'hidden'
 
 	addTileToHand: (data) =>
 		console.log "Received new tile: #{data.tile}"
@@ -64,10 +69,25 @@ class Game
 		@bagSize = data.size
 		console.log "Bag size: #{data.size}"
 		$('#menu p span.bag-size').text @bagSize
+
+	activateBananasBtn: () =>
+		$('#menu li#bananas').removeClass 'hidden'
+
+	#collect board data into 2d array,
+	#and send it to server for validation
+	validateBoard: (e) =>
+		board = @BOARD.toObject()
+		@socket.emit 'validate', board: board
 	
+	#alert player that his/her board is invalid
+	invalidBoardMessage: =>
+		alert "Invalid board! Move some letters around and try again..."
+
+	#when a player wins...
 	gameOver: (data) ->
 		winner = data.winner
-		alert "BANANAS! #{winner} won!"
+		winner = "YOU" if winner is @nickname
+		alert "BANANAS! #{winner} WON!"
 	
 ###
 	HAND class: manages the player's 'hand' of tiles
@@ -112,7 +132,7 @@ class Board
 		@NUMCOLS = 10
 		@NUMROWS = 10
 		#empty symbol
-		@EMPTY = "&oslash;"
+		@EMPTY = "&Oslash;"
 
 		#build table
 		htmlString = ""
@@ -164,6 +184,16 @@ class Board
 		row = @$board.find('tr')[y]
 		col = row.getElementsByTagName('td')[x]
 		col.innerText = tile
+
+	#return player's board as a 2d array of letters
+	toObject: ->
+		rows = @$board[0].childNodes
+		board = []
+		for row in rows
+			board.push (cell.innerText for cell in row.childNodes)
+		board = board[0] #look at the web inspector to see why this is needed
+		console.log board
+		return board
 
 	#given a row, col index where a tile was added,
 	#extend the board appropriately

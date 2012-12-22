@@ -3,6 +3,7 @@
 AppFiles = [
 	'./server.coffee'
 	'./Bag.coffee'
+	'./Dictionary.coffee'
 	'./public/app.coffee'
 ]
 
